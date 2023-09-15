@@ -1,0 +1,5 @@
+POST http://127.0.0.1:4201
+
+{
+    "text":"class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',\n'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']"
+}
