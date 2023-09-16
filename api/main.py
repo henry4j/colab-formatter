@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import subprocess
+import os
+import time
 
 app = FastAPI()
 from starlette.middleware.cors import CORSMiddleware
@@ -21,10 +23,7 @@ class Code(BaseModel):
 
 @app.post("/")
 def post(code: Code):
-    with open("tmp.py", mode="w") as f:
-        f.write(code.text)
-
-    subprocess.run(["black", "tmp.py"])
-
-    with open("tmp.py") as f:
-        return {"text": f.read()}
+    formatted_code = subprocess.run(
+        ["black", "--code", code.text], stdout=subprocess.PIPE
+    )
+    return {"text": formatted_code.stdout}
