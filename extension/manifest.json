@@ -2,19 +2,17 @@
   "name": "colab-formatter",
   "version": "1.0.0",
   "manifest_version": 3,
-  "description": "sample",
-  "permissions": ["activeTab", "tabs", "debugger", "storage", "scripting"],
-  "host_permissions": ["<all_urls>"],
+  "description": "google colab上のコードをフォーマットする",
+  "permissions": ["activeTab", "debugger", "scripting"],
   "background": {
     "service_worker": "background.js"
   },
   "commands": {
-    "runSomething": {
+    "format": {
       "suggested_key": {
-        "default": "Ctrl+Shift+M",
-        "mac": "MacCtrl+Shift+M"
+        "default": "Ctrl+Shift+F"
       },
-      "description": "Run something"
+      "description": "フォーマットを実行"
     }
   }
 }
