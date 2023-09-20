@@ -36,6 +36,15 @@ chrome.commands.onCommand.addListener((command) => {
         windowsVirtualKeyCode: 86,
         modifiers: 2,
       };
+      const deleteKey = {
+        type: "keyDown",
+        windowsVirtualKeyCode: 8,
+      };
+      const selectIndent = {
+        type: "keyDown",
+        windowsVirtualKeyCode: 36,
+        modifiers: 8,
+      };
 
       // デバッガをアタッチ
       await chrome.debugger.attach({ tabId: tab.id }, "1.3");
@@ -78,7 +87,7 @@ chrome.commands.onCommand.addListener((command) => {
           text: code[0].result.replace(/\xA0/g, " "), // ノーブレークスペースがあるとフォーマットが正しくできないので通常の半角スペースに変換する
         }),
       };
-      const formattedCode = await fetch(
+      let formattedCode = await fetch(
         "https://colabformatter-1-l8242131.deta.app/",
         options
       )
@@ -87,22 +96,65 @@ chrome.commands.onCommand.addListener((command) => {
         })
         .catch((err) => console.error(err));
 
-      // フォーマット済みのコードをクリップボードに書き込み
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: (code) => {
-          navigator.clipboard.writeText(code.text.replace(/\s$/, "")); // 最後の改行はnotebookにおいては邪魔なので削除
-        },
-        args: [formattedCode],
-      });
+      // 最後の改行はnotebookにおいては邪魔なので削除
+      formattedCode = formattedCode.text.replace(/\n$/, "");
+      console.log(formattedCode);
+      if (os == "mac") {
+        // フォーマット前のコードをクリップボードに書き込み
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: (code) => {
+            navigator.clipboard.writeText(code);
+          },
+          args: [code[0].result.replace(/\xA0/g, " ")],
+        });
 
-      // クリップボードの内容をペースト
-      await chrome.debugger.sendCommand(
-        { tabId: tab.id },
-        "Input.dispatchKeyEvent",
-        paste
-      );
+        //　コードを改行で分割
+        let splitCode = formattedCode.split(/(?<=\r\n|\n)/);
 
+        await chrome.debugger.sendCommand(
+          { tabId: tab.id },
+          "Input.insertText",
+          { text: splitCode[0] }
+        );
+        for (let i = 1; i < splitCode.length; i++) {
+          // 前の行が
+          if (splitCode[i - 1].indexOf(" ") == 0) {
+            await chrome.debugger.sendCommand(
+              { tabId: tab.id },
+              "Input.dispatchKeyEvent",
+              selectIndent
+            );
+            await chrome.debugger.sendCommand(
+              { tabId: tab.id },
+              "Input.dispatchKeyEvent",
+              deleteKey
+            );
+          }
+
+          await chrome.debugger.sendCommand(
+            { tabId: tab.id },
+            "Input.insertText",
+            { text: splitCode[i] }
+          );
+        }
+      } else {
+        // フォーマット済みのコードをクリップボードに書き込み
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: (formattedCode) => {
+            navigator.clipboard.writeText(formattedCode);
+          },
+          args: [formattedCode],
+        });
+
+        // クリップボードの内容をペースト
+        await chrome.debugger.sendCommand(
+          { tabId: tab.id },
+          "Input.dispatchKeyEvent",
+          paste
+        );
+      }
       // デバッガをデタッチ
       await chrome.debugger.detach({ tabId: tab.id });
     })();
