@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "manifest_version": 3,
   "description": "google colab上のコードをフォーマットする",
-  "permissions": ["activeTab", "debugger", "scripting"],
+  "permissions": ["debugger", "scripting"],
   "host_permissions": ["https://colab.research.google.com/*"],
   "icons": {
     "16": "assets/icon16.png",

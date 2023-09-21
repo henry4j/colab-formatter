@@ -1,19 +1,12 @@
-// アクティブタブの情報を取得する関数
-async function t() {
-  return (await chrome.tabs.query({ active: !0, currentWindow: !0 }))[0];
-}
-
 // OSの判別
 let os = "";
 chrome.runtime.getPlatformInfo(function (info) {
   os = info.os;
 });
 
-chrome.commands.onCommand.addListener((command) => {
+chrome.commands.onCommand.addListener((command, tab) => {
   if (command == "format") {
     (async function () {
-      // アクティブタブの情報を取得
-      const tab = await t();
 
       // colabのサイト以外は以降の処理をスキップ
       if (tab.url.indexOf("https://colab.research.google.com/")) {
