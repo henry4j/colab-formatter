@@ -60,10 +60,17 @@ chrome.commands.onCommand.addListener((command) => {
       const code = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
-          const code = document.querySelectorAll(
-            ".cell.code.focused .view-line"
-          );
+          const code = [
+            ...document.querySelectorAll(".cell.code.focused .view-line"),
+          ];
           let combinedCode = "";
+
+          code.sort(function (first, second) {
+            firstStyleTop = Number(first.style.top.replace("px", ""));
+            secondStyleTop = Number(second.style.top.replace("px", ""));
+            return firstStyleTop - secondStyleTop;
+          });
+
           code.forEach((line) => {
             const lineChildren = [...line.children[0].children];
             let combinedLine = "";
