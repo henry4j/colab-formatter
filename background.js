@@ -7,15 +7,18 @@ chrome.runtime.getPlatformInfo(function (info) {
 chrome.commands.onCommand.addListener((command, tab) => {
   if (command == "format") {
     (async function () {
-
-      // colabのサイト以外は以降の処理をスキップ
-      if (tab.url.indexOf("https://colab.research.google.com/")) {
+      // 特定ののサイト以外は以降の処理をスキップ
+      if (
+        tab.url.indexOf("https://colab.research.google.com/") &&
+        tab.url.indexOf("https://www.kaggle.com/")
+      ) {
         return;
       }
 
       //OSによって修飾キーを変える
       const ctrl = 2;
       const command = 4;
+      const shift = 8;
       let modifiers = os == "mac" ? command : ctrl;
 
       // 入力するkey情報を設定
@@ -27,16 +30,21 @@ chrome.commands.onCommand.addListener((command, tab) => {
       const paste = {
         type: "keyDown",
         windowsVirtualKeyCode: 86,
-        modifiers: 2,
+        modifiers: ctrl,
+      };
+      const copy = {
+        type: "keyDown",
+        windowsVirtualKeyCode: 67,
+        modifiers: ctrl,
       };
       const deleteKey = {
         type: "keyDown",
-        windowsVirtualKeyCode: 8,
+        windowsVirtualKeyCode: shift,
       };
       const selectIndent = {
         type: "keyDown",
         windowsVirtualKeyCode: 36,
-        modifiers: 8,
+        modifiers: shift,
       };
 
       // デバッガをアタッチ
@@ -49,32 +57,48 @@ chrome.commands.onCommand.addListener((command, tab) => {
         allSelect
       );
 
+      let code;
+
       // フォーマット前のコードを取得
-      const code = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
-          const code = [
-            ...document.querySelectorAll(".cell.code.focused .view-line"),
-          ];
-          let combinedCode = "";
+      if (os == "mac") {
+        code = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const code = [
+              ...document.querySelectorAll(".cell.code.focused .view-line"),
+            ];
+            let combinedCode = "";
 
-          code.sort(function (first, second) {
-            firstStyleTop = Number(first.style.top.replace("px", ""));
-            secondStyleTop = Number(second.style.top.replace("px", ""));
-            return firstStyleTop - secondStyleTop;
-          });
-
-          code.forEach((line) => {
-            const lineChildren = [...line.children[0].children];
-            let combinedLine = "";
-            lineChildren.forEach((child) => {
-              combinedLine += child.textContent;
+            code.sort(function (first, second) {
+              firstStyleTop = Number(first.style.top.replace("px", ""));
+              secondStyleTop = Number(second.style.top.replace("px", ""));
+              return firstStyleTop - secondStyleTop;
             });
-            combinedCode += combinedLine + "\n";
-          });
-          return combinedCode;
-        },
-      });
+
+            code.forEach((line) => {
+              const lineChildren = [...line.children[0].children];
+              let combinedLine = "";
+              lineChildren.forEach((child) => {
+                combinedLine += child.textContent;
+              });
+              combinedCode += combinedLine + "\n";
+            });
+            return combinedCode;
+          },
+        });
+      } else {
+        await chrome.debugger.sendCommand(
+          { tabId: tab.id },
+          "Input.dispatchKeyEvent",
+          copy
+        );
+        code = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: async() => {
+            return await navigator.clipboard.readText();
+          },
+        });
+      }
 
       // フォーマット済みのコードをapiから取得
       const options = {

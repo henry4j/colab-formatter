@@ -4,7 +4,10 @@
   "manifest_version": 3,
   "description": "google colab上のコードをフォーマットする",
   "permissions": ["debugger", "scripting"],
-  "host_permissions": ["https://colab.research.google.com/*"],
+  "host_permissions": [
+    "https://colab.research.google.com/*",
+    "https://www.kaggle.com/*"
+  ],
   "icons": {
     "16": "assets/icon16.png",
     "48": "assets/icon48.png",
