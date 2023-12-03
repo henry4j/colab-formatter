@@ -53,17 +53,17 @@ chrome.commands.onCommand.addListener((commands, tab) => {
 
       let code;
       if (os == "mac") {
-        code = await copyCodeMac(tab);
+        code = await copyCodeMac(tab.id);
       } else {
-        code = await copyCodeWindows(tab);
+        code = await copyCode(tab.id);
       }
 
       let formattedCode = await formatCode(code);
 
       if (os == "mac") {
-        await pasteCodeMac(tab, code, formattedCode);
+        await pasteCodeMac(tab.id, code, formattedCode);
       } else {
-        await pasteCodeWindows(tab, formattedCode);
+        await pasteCode(tab.id, formattedCode);
       }
 
       await chrome.debugger.detach({ tabId: tab.id }); // デバッガをデタッチ
@@ -72,34 +72,34 @@ chrome.commands.onCommand.addListener((commands, tab) => {
 });
 
 /**
- * テキストをペーストする（Windows用）
+ * テキストをペーストする
  *
- * @param {*} tab ペースト先のタブ
- * @param {*} formattedCode ペーストするテキスト
+ * @param {*} tabId ペースト先のタブ
+ * @param {*} text ペーストするテキスト
  */
-async function pasteCodeWindows(tab, formattedCode) {
+async function pasteCode(tabId, text) {
   await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: (formattedCode) => {
-      navigator.clipboard.writeText(formattedCode);
+    target: { tabId: tabId },
+    func: (text) => {
+      navigator.clipboard.writeText(text);
     },
-    args: [formattedCode],
+    args: [text],
   });
 
-  await pressKey(tab.id, paste);
+  await pressKey(tabId, paste);
 }
 
 /**
  * テキストをペーストする（Mac用）
  *
- * @param {*} tab ペースト先のタブ
+ * @param {*} tabId ペースト先のタブ
  * @param {*} code フォーマット前のコード
  * @param {*} formattedCode フォーマット後のコード
  */
-async function pasteCodeMac(tab, code, formattedCode) {
+async function pasteCodeMac(tabId, code, formattedCode) {
   // フォーマット前のコードをクリップボードに書き込み
   await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
+    target: { tabId: tabId },
     func: (code) => {
       navigator.clipboard.writeText(code);
     },
@@ -109,19 +109,15 @@ async function pasteCodeMac(tab, code, formattedCode) {
   //　コードを改行で分割
   let splitCode = formattedCode.split(/(?<=\r\n|\n)/);
 
-  await chrome.debugger.sendCommand({ tabId: tab.id }, "Input.insertText", {
-    text: splitCode[0],
-  });
+  await insertText(tabId, splitCode[0]);
   for (let i = 1; i < splitCode.length; i++) {
-    // 前の行が
+    // 前の行にインデントがある場合は、自動インデントを削除する
     if (splitCode[i - 1].indexOf(" ") == 0) {
-      await pressKey(tab.id, selectIndent);
-      await pressKey(tab.id, deleteKey);
+      await pressKey(tabId, selectIndent);
+      await pressKey(tabId, deleteKey);
     }
 
-    await chrome.debugger.sendCommand({ tabId: tab.id }, "Input.insertText", {
-      text: splitCode[i],
-    });
+    await insertText(tabId, splitCode[i])
   }
 }
 
@@ -157,31 +153,31 @@ async function formatCode(code) {
 }
 
 /**
- * テキストをコピーする（Windows用）
+ * テキストをコピーする
  *
- * @param {*} tab コピー元のタブ
+ * @param {*} tabId コピー元のタブID
  * @return {*} コピーしたテキスト
  */
-async function copyCodeWindows(tab) {
-  await pressKey(tab.id, copy);
-  code = await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
+async function copyCode(tabId) {
+  await pressKey(tabId, copy);
+  const text = await chrome.scripting.executeScript({
+    target: { tabId: tabId },
     func: async () => {
       return await navigator.clipboard.readText();
     },
   });
-  return code;
+  return text;
 }
 
 /**
  * テキストをペーストする（Mac用）
  *
- * @param {*} tab コピー元のタブ
+ * @param {*} tabId コピー元のタブID
  * @return {*} コピーしたテキスト
  */
-async function copyCodeMac(tab) {
-  code = await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
+async function copyCodeMac(tabId) {
+  const code = await chrome.scripting.executeScript({
+    target: { tabId: tabId },
     func: () => {
       const code = [
         ...document.querySelectorAll(".cell.code.focused .view-line"),
@@ -220,4 +216,16 @@ async function pressKey(tabId, key) {
     "Input.dispatchKeyEvent",
     key
   );
+}
+
+/**
+ * テキストを挿入する
+ *
+ * @param {*} tabId 挿入先のタブID
+ * @param {*} text 挿入するテキスト
+ */
+async function insertText(tabId, text) {
+  await chrome.debugger.sendCommand({ tabId: tabId }, "Input.insertText", {
+    text: text,
+  });
 }
