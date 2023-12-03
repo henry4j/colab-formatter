@@ -71,6 +71,12 @@ chrome.commands.onCommand.addListener((commands, tab) => {
   }
 });
 
+/**
+ * テキストをペーストする（Windows用）
+ *
+ * @param {*} tab ペースト先のタブ
+ * @param {*} formattedCode ペーストするテキスト
+ */
 async function pasteCodeWindows(tab, formattedCode) {
   await chrome.scripting.executeScript({
     target: { tabId: tab.id },
@@ -83,6 +89,13 @@ async function pasteCodeWindows(tab, formattedCode) {
   await pressKey(tab.id, paste);
 }
 
+/**
+ * テキストをペーストする（Mac用）
+ *
+ * @param {*} tab ペースト先のタブ
+ * @param {*} code フォーマット前のコード
+ * @param {*} formattedCode フォーマット後のコード
+ */
 async function pasteCodeMac(tab, code, formattedCode) {
   // フォーマット前のコードをクリップボードに書き込み
   await chrome.scripting.executeScript({
@@ -112,6 +125,12 @@ async function pasteCodeMac(tab, code, formattedCode) {
   }
 }
 
+/**
+ * api経由でコードをフォーマットする
+ *
+ * @param {*} code フォーマットするコード
+ * @return {*} フォーマット済みのコード
+ */
 async function formatCode(code) {
   const options = {
     method: "POST",
@@ -137,6 +156,12 @@ async function formatCode(code) {
   return formattedCode;
 }
 
+/**
+ * テキストをコピーする（Windows用）
+ *
+ * @param {*} tab コピー元のタブ
+ * @return {*} コピーしたテキスト
+ */
 async function copyCodeWindows(tab) {
   await pressKey(tab.id, copy);
   code = await chrome.scripting.executeScript({
@@ -148,6 +173,12 @@ async function copyCodeWindows(tab) {
   return code;
 }
 
+/**
+ * テキストをペーストする（Mac用）
+ *
+ * @param {*} tab コピー元のタブ
+ * @return {*} コピーしたテキスト
+ */
 async function copyCodeMac(tab) {
   code = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
@@ -177,6 +208,12 @@ async function copyCodeMac(tab) {
   return code;
 }
 
+/**
+ * キーを押す動作をエミュレートする
+ *
+ * @param {*} tabId キーを押す先のタブID
+ * @param {*} key 押すキー
+ */
 async function pressKey(tabId, key) {
   await chrome.debugger.sendCommand(
     { tabId: tabId },
