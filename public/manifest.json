@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "manifest_version": 3,
   "description": "google colab上のコードをフォーマットする",
-  "permissions": ["debugger", "scripting", "offscreen"],
+  "permissions": ["debugger", "scripting", "offscreen", "notifications"],
   "host_permissions": [
     "https://colab.research.google.com/*",
     "https://www.kaggle.com/*"

@@ -24,7 +24,8 @@ pyodideClass.init();
 chrome.runtime.onMessage.addListener((request: any, _sender, callback) => {
   (async () => {
     try {
-      const preformattedCode = request.code
+      // ノーブレークスペースがあるとフォーマットが正しくできないので通常の半角スペースに変換する
+      const preformattedCode = request.code.replace(/\xA0/g, " ")
       // 直接フォーマットさせるとエスケープ文字などの入力でエラーが発生するので、一度ファイルに書き出している
       pyodideClass.pyodide.FS.writeFile("./tmp.py", preformattedCode, {
         encoding: "utf8",
