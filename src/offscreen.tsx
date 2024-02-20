@@ -1,42 +1,62 @@
-import { loadPyodide } from "pyodide";
+import { loadPyodide, PyodideInterface } from "pyodide";
 
 class Pyodide {
-  pyodide: any;
+  pyodide: PyodideInterface | undefined;
 
   async init() {
-    let pyodide = await loadPyodide({
+    const pyodide = await loadPyodide({
       indexURL: "./pyodide",
     });
     await pyodide.loadPackage("micropip", { checkIntegrity: false });
-
     await pyodide.runPythonAsync(`
-import micropip
-await micropip.install("./wheel/black-23.12.1-py3-none-any.whl")
-import black
-      `);
+      import micropip
+      await micropip.install("./wheel/black-23.12.1-py3-none-any.whl")
+      import black
+    `);
     this.pyodide = pyodide;
+  }
+
+  async formatCode(code: string) {
+    const preprocessedCode = this.preprocessing(code)
+
+    // 直接フォーマットするとエスケープ文字等が含まれている場合にエラーが発生するため、
+    // 一度ファイルに書き出してからフォーマットしている
+    this.pyodide!.FS.writeFile("./tmp.py", preprocessedCode, {
+      encoding: "utf8",
+    });
+    const formattedCode = await this.pyodide!.runPythonAsync(`
+      with open("./tmp.py", "r") as f:
+          data = f.read()
+      code = black.format_str(data, mode=black.Mode())
+      code
+    `);
+
+    return this.postprocessing(formattedCode)
+  }
+
+  preprocessing(code: string) {
+    // ノーブレークスペースがあるとフォーマットが正しくできないので通常の半角スペースに変換する
+    let preprocessedCode = code.replace(/\xA0/g, " ")
+    return preprocessedCode
+  }
+
+  postprocessing(code: string) {
+    // 最後の改行はノートブックにおいては必要ないので削除
+    let postProcessedCode = code.replace(/\n$/, "");
+    return postProcessedCode
   }
 }
 
+// フォーマット毎にpyodideを初期化するとレスポンスが非常に悪くなるため、
+// グローバル変数として定義・初期化をしている
 const pyodideClass = new Pyodide();
 pyodideClass.init();
 
-chrome.runtime.onMessage.addListener((request: any, _sender, callback) => {
+// backgroundからメッセージが送られてくると、以下の関数が実行されフォーマットされる
+chrome.runtime.onMessage.addListener((request, _sender, callback) => {
   (async () => {
     try {
-      // ノーブレークスペースがあるとフォーマットが正しくできないので通常の半角スペースに変換する
-      const preformattedCode = request.code.replace(/\xA0/g, " ")
-      // 直接フォーマットさせるとエスケープ文字などの入力でエラーが発生するので、一度ファイルに書き出している
-      pyodideClass.pyodide.FS.writeFile("./tmp.py", preformattedCode, {
-        encoding: "utf8",
-      });
-      let formattedCode = await pyodideClass.pyodide.runPythonAsync(`
-with open("./tmp.py", "r") as f:
-    data = f.read()
-code = black.format_str(data, mode=black.Mode())
-code
-`);
-      formattedCode = formattedCode.replace(/\n$/, "");
+      const formattedCode = await pyodideClass.formatCode(request.code)
       callback({ status: "success", code: formattedCode });
     } catch (e: any) {
       console.log(e.message);
