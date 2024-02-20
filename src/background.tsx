@@ -7,7 +7,7 @@ chrome.offscreen.createDocument({
 
 // ショートカットキー入力時に以下の関数が実行される
 chrome.commands.onCommand.addListener((commands, tab) => {
-  if (commands == "format") {
+  if (commands === "format") {
     (async function () {
       // フォーマットをする必要が無いサイトでは以降の処理をスキップ
       const permittedUrl = ["https://colab.research.google.com/", "https://www.kaggle.com/"]
@@ -131,7 +131,7 @@ class MacCodeController {
 
     for (let i = 1; i < splitCode.length; i++) {
       // 前の行にインデントがある場合は、改行時にエディタ側で挿入される自動インデントを削除する
-      if (splitCode[i - 1].indexOf(" ") == 0) {
+      if (splitCode[i - 1].indexOf(" ") === 0) {
         await this.key.press("selectIndent")
         await this.key.press("deleteKey")
       }
