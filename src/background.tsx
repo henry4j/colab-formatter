@@ -16,24 +16,22 @@ chrome.commands.onCommand.addListener((commands, tab) => {
         return;
       }
 
-      const tabId = tab.id!
-      const code = await readCode(tabId)
+      // chrome.debugger APIを有効にする
+      await chrome.debugger.attach({ tabId: tab.id }, "1.3");
+
+      // コードをフォーマットしてセルに書き込む
+      const os = (await chrome.runtime.getPlatformInfo()).os;
+      const codeController = os === "mac" ? new MacCodeController(tab.id!) : new CodeController(tab.id!)
+      const code = await codeController.readCode();
       const formattedCode = await formatCode(code);
-      await writeCode(tabId, formattedCode);
+      await codeController.writeCode(formattedCode);
+
+      // chrome.debugger APIを無効にする
+      await chrome.debugger.detach({ tabId: tab.id });
     })();
   }
 });
 
-async function readCode(tabId: number) {
-  const code = await chrome.scripting.executeScript({
-    target: { tabId: tabId },
-    func: () => {
-      const codeElement = document.querySelector<HTMLTextAreaElement>(".cell.code.focused textarea")!
-      return codeElement.value
-    },
-  });
-  return code[0].result;
-}
 
 async function formatCode(code: string) {
   const response = await chrome.runtime.sendMessage({ code: code }); // offscreenにコードを送り、フォーマットする
@@ -48,22 +46,151 @@ async function formatCode(code: string) {
   return response.code;
 }
 
-async function writeCode(tabId: number, code: string) {
-  await chrome.scripting.executeScript({
-    target: { tabId: tabId },
-    func: async (code) => {
-      const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+class CodeController {
+  readonly tabId: number;
+  key: Key;
 
-      // フォーカス中のテキストエリアにコードを書き込む
-      const codeElement = document.querySelector<HTMLTextAreaElement>(".cell.code.focused textarea")!;
-      const currentCaretPos = codeElement.selectionStart
-      codeElement.setSelectionRange(0, codeElement.value.length); // 元のコードが残らないようにするため全選択する
-      await sleep(1); // なぜか待機しないと正しくコードが書き込まれない。colab側のイベントリスナーが原因？
-      codeElement.value = code;
-      codeElement.dispatchEvent(new InputEvent("input")); // 手入力をシミュレートするためにイベントを発火
-      await sleep(1);
-      codeElement.setSelectionRange(currentCaretPos, currentCaretPos);
-    },
-    args: [code]
-  });
+  constructor(tabId: number) {
+    this.tabId = tabId;
+    this.key = new Key(tabId, false);
+  }
+
+  async readCode() {
+    await this.key.press("allSelect")
+    await this.key.press("copy")
+    const code = await chrome.scripting.executeScript({
+      target: { tabId: this.tabId },
+      func: async () => {
+        return await navigator.clipboard.readText();
+      },
+    });
+    return code[0].result;
+  }
+
+  async writeCode(code: string) {
+    await chrome.scripting.executeScript({
+      target: { tabId: this.tabId },
+      func: (text) => {
+        navigator.clipboard.writeText(text);
+      },
+      args: [code],
+    });
+    await this.key.press("paste")
+  }
+}
+
+class MacCodeController {
+  readonly tabId: number;
+  key: Key;
+
+  constructor(tabId: number) {
+    this.tabId = tabId;
+    this.key = new Key(tabId, true);
+  }
+
+  async readCode() {
+    await this.key.press("allSelect")
+
+    const code = await chrome.scripting.executeScript({
+      target: { tabId: this.tabId },
+      func: () => {
+        // コードに関連するHTML要素のリストを取得
+        const code = [
+          ...document.querySelectorAll<HTMLElement>(
+            ".cell.code.focused .view-line"
+          ),
+        ];
+
+        // リストの順番がコードの順番と同じとは限らないため、正しい順番にソートする
+        // CSSのtopの値が正しいコードの順番になっているようなので、topの値を基準にソートしている
+        code.sort(function (first, second) {
+          const firstStyleTop = Number(first.style.top.replace("px", ""));
+          const secondStyleTop = Number(second.style.top.replace("px", ""));
+          return firstStyleTop - secondStyleTop;
+        });
+
+        // リストからコード本体を取得
+        let combinedCode = "";
+        code.forEach((line) => {
+          const lineChildren = [...line.children[0].children];
+          let combinedLine = "";
+          lineChildren.forEach((child) => {
+            combinedLine += child.textContent;
+          });
+          combinedCode += combinedLine + "\n";
+        });
+        return combinedCode;
+      },
+    });
+    return code[0].result;
+  }
+
+  async writeCode(code: string) {
+    const splitCode = code.split(/(?<=\r\n|\n)/);
+    await this.insertText(splitCode[0]);
+
+    for (let i = 1; i < splitCode.length; i++) {
+      // 前の行にインデントがある場合は、改行時にエディタ側で挿入される自動インデントを削除する
+      if (splitCode[i - 1].indexOf(" ") === 0) {
+        await this.key.press("selectIndent")
+        await this.key.press("deleteKey")
+      }
+
+      await this.insertText(splitCode[i]);
+    }
+  }
+
+  async insertText(text: string) {
+    await chrome.debugger.sendCommand({ tabId: this.tabId }, "Input.insertText", {
+      text: text,
+    });
+  }
+}
+
+class Key {
+  readonly tabId: number;
+  readonly keyCommandParams;
+
+  constructor(tabId: number, isMac: boolean) {
+    const ctrl = 2;
+    const command = 4;
+    const shift = 8;
+    const modifiers = isMac ? command : ctrl; // OSによって修飾キーを変える
+
+    this.tabId = tabId
+    this.keyCommandParams = {
+      paste: {
+        type: "keyDown",
+        windowsVirtualKeyCode: 86,
+        modifiers: ctrl,
+      },
+      copy: {
+        type: "keyDown",
+        windowsVirtualKeyCode: 67,
+        modifiers: ctrl,
+      },
+      deleteKey: {
+        type: "keyDown",
+        windowsVirtualKeyCode: 8,
+      },
+      selectIndent: {
+        type: "keyDown",
+        windowsVirtualKeyCode: 36,
+        modifiers: shift,
+      },
+      allSelect: {
+        type: "keyDown",
+        windowsVirtualKeyCode: 65,
+        modifiers: modifiers,
+      }
+    }
+  }
+
+  async press(key: keyof typeof this.keyCommandParams) {
+    await chrome.debugger.sendCommand(
+      { tabId: this.tabId },
+      "Input.dispatchKeyEvent",
+      this.keyCommandParams[key]
+    );
+  }
 }
