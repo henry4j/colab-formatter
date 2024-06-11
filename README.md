@@ -6,9 +6,9 @@ Google Colab上のコードをフォーマットするchrome拡張機能
 
 1. [releases](https://github.com/KubotaDaiki/colab-formatter/releases)から最新バージョンをダウンロード
 2. ダウンロードしたzipを解凍
-3. Chrome拡張機能のデベロッパーモードを有効にし、「パッケージ化されていない拡張機能を読み込む」で解凍済みファイルを読み込む
-4. Google Colabにアクセスし、フォーマットしたいセルの上でショートカットキーを押す
-    - ショートカットキーはデフォルトで`Alt+S`（macは`option+S`）
+3. `chrome://extensions`でChrome拡張機能のデベロッパーモードを有効にし、「パッケージ化されていない拡張機能を読み込む」で解凍済みファイルを読み込む
+4. `chrome://extensions/shortcuts`で「フォーマットを実行」に好きなショートカットキーを設定する
+5. Google Colabにアクセスし、フォーマットしたいセルの上でショートカットキーを押す
 
 ## デモ動画
 
