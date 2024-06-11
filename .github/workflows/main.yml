@@ -1,0 +1,33 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+      - name: Set repository name
+        run: echo "REPOSITORY_NAME=$(echo ${{ github.repository }} | sed -e "s#.*/##")" >> $GITHUB_ENV
+      - name: Zip output
+        run: |
+          cd dist
+          zip -r ${{ env.REPOSITORY_NAME }} *
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./dist/${{ env.REPOSITORY_NAME }}.zip
