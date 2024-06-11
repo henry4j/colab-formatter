@@ -38,9 +38,14 @@ async function readCode(tabId: number) {
         modifierKey["metaKey"] = true;
       }
       const allSelectEvent = new KeyboardEvent("keydown", { ...modifierKey, bubbles: true, keyCode: 65 })
-      codeElement.dispatchEvent(allSelectEvent); // デフォルトだと全てのコードが.valueに入らないため、全選択のイベントをを発火させている
+      codeElement.dispatchEvent(allSelectEvent); // デフォルトだと全てのコードが取得できないため、全選択のイベントをを発火させている
 
-      return codeElement.value
+      // copyイベントを意図的に発火させ、コードを取得する
+      const dataTransfer = new DataTransfer();
+      codeElement.dispatchEvent(new ClipboardEvent("copy", { clipboardData: dataTransfer }));
+      const code = dataTransfer.getData("text/plain")
+
+      return code;
     },
   });
   return code[0].result;
