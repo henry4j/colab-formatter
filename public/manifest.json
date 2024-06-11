@@ -19,8 +19,7 @@
   "commands": {
     "format": {
       "suggested_key": {
-        "default": "Ctrl+Shift+F",
-        "mac": "MacCtrl+Shift+F"
+        "default": "Alt+S"
       },
       "description": "フォーマットを実行"
     }
