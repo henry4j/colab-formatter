@@ -12,6 +12,7 @@ class Pyodide {
       import micropip
       await micropip.install("/assets/wheel/black-23.12.1-py3-none-any.whl")
       import black
+      import re
     `);
     this.pyodide = pyodide;
   }
@@ -28,7 +29,8 @@ class Pyodide {
       with open("./tmp.py", "r") as f:
           data = f.read()
       code = black.format_str(data, mode=black.Mode())
-      code.replace("    ", "  ")
+      code = code.replace("    ", "  ")
+      re.sub("\n\n(?!assert)", "\n", code)
     `);
 
     return this.postprocessing(formattedCode)
