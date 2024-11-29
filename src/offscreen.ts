@@ -28,7 +28,7 @@ class Pyodide {
       with open("./tmp.py", "r") as f:
           data = f.read()
       code = black.format_str(data, mode=black.Mode())
-      code
+      code.replace("    ", "  ")
     `);
 
     return this.postprocessing(formattedCode)
