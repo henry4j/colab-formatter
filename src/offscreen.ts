@@ -10,9 +10,8 @@ class Pyodide {
     await pyodide.loadPackage("micropip", { checkIntegrity: false });
     await pyodide.runPythonAsync(`
       import micropip
-      await micropip.install("/assets/wheel/black-23.12.1-py3-none-any.whl")
-      import black
-      import re
+      await micropip.install("./wheel/yapf-0.43.0-py3-none-any.whl")
+      from yapf.yapflib.yapf_api import FormatCode
     `);
     this.pyodide = pyodide;
   }
@@ -28,9 +27,7 @@ class Pyodide {
     const formattedCode = await this.pyodide!.runPythonAsync(`
       with open("./tmp.py", "r") as f:
           data = f.read()
-      code = black.format_str(data, mode=black.Mode())
-      code = code.replace("    ", "  ")
-      re.sub("\n\n(?!assert)", "\n", code)
+      FormatCode(data, style_config="{based_on_style: yapf, BLANK_LINES_AROUND_TOP_LEVEL_DEFINITION: 1, BLANK_LINES_BETWEEN_TOP_LEVEL_IMPORTS_AND_VARIABLES: 1}")[0]
     `);
 
     return this.postprocessing(formattedCode)
