@@ -21,13 +21,9 @@ class Pyodide {
 
     // 直接フォーマットするとエスケープ文字等が含まれている場合にエラーが発生するため、
     // 一度ファイルに書き出してからフォーマットしている
-    this.pyodide!.FS.writeFile("./tmp.py", preprocessedCode, {
-      encoding: "utf8",
-    });
+    this.pyodide.globals.set("unformatted", preprocessedCode)
     const formattedCode = await this.pyodide!.runPythonAsync(`
-      with open("./tmp.py", "r") as f:
-          data = f.read()
-      FormatCode(data, style_config="{based_on_style: yapf, BLANK_LINES_AROUND_TOP_LEVEL_DEFINITION: 1, BLANK_LINES_BETWEEN_TOP_LEVEL_IMPORTS_AND_VARIABLES: 1}")[0]
+      FormatCode(unformatted, style_config="{based_on_style: yapf, BLANK_LINES_AROUND_TOP_LEVEL_DEFINITION: 1, BLANK_LINES_BETWEEN_TOP_LEVEL_IMPORTS_AND_VARIABLES: 1, BLANK_LINE_BEFORE_NESTED_CLASS_OR_DEF: false, DISABLE_SPLIT_LIST_WITH_COMMENT: true, SPLIT_BEFORE_LOGICAL_OPERATOR: true, INDENT_DICTIONARY_VALUE: true, ARITHMETIC_PRECEDENCE_INDICATION: true, JOIN_MULTIPLE_LINES: true}")[0]
     `);
 
     return this.postprocessing(formattedCode)
