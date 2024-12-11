@@ -23,10 +23,11 @@ class Pyodide {
     // 直接フォーマットするとエスケープ文字等が含まれている場合にエラーが発生するため、
     // 一度ファイルに書き出してからフォーマットしている
     this.pyodide.globals.set("unformatted", preprocessedCode)
-    const formattedCode = await this.pyodide!.runPythonAsync(`
+    const formattedCode = await this.pyodide!.runPythonAsync(String.raw`
       code = FormatCode(unformatted, style_config="{based_on_style: yapf, COLUMN_LIMIT: 87, BLANK_LINES_AROUND_TOP_LEVEL_DEFINITION: 1, BLANK_LINES_BETWEEN_TOP_LEVEL_IMPORTS_AND_VARIABLES: 1, BLANK_LINE_BEFORE_NESTED_CLASS_OR_DEF: false, DISABLE_SPLIT_LIST_WITH_COMMENT: true, SPLIT_BEFORE_LOGICAL_OPERATOR: true, INDENT_DICTIONARY_VALUE: true, ARITHMETIC_PRECEDENCE_INDICATION: true, JOIN_MULTIPLE_LINES: true}")[0]
-      code = re.sub(r" *([-+]| [><]=?) (\\d+)", r"\\1\\2", code)
-      re.sub(r"^(# @title)(\\n.*)(def [^\\n]+)", r"\\1 ##### \\3\\2\\3", code, flags=re.DOTALL)
+      code = re.sub(r" *([-+]| [><]=?) (\d+)", r"\1\2", code)
+      code = re.sub(r"\n+(\s\s+def )", r"\n\1", code)
+      re.sub(r"^(# @title)$(.*)^(def .+?)$", r"\1 ##### \3\2\3", code, flags=re.MULTILINE | re.DOTALL)
     `);
 
     return this.postprocessing(formattedCode)
